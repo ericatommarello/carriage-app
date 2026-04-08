@@ -1,16 +1,36 @@
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OfficiantCard } from '@/components/officiant-card';
 import { WeddingFonts, WeddingPalette } from '@/constants/wedding-theme';
 import { MOCK_OFFICIANTS } from '@/data/mock-officiants';
 import { useWedding } from '@/context/wedding-context';
-import { useResponsive } from '@/hooks/use-responsive';
+import { DESKTOP_BREAKPOINT, useResponsive } from '@/hooks/use-responsive';
 
 const LANDING_OFFICIANTS = MOCK_OFFICIANTS.slice(0, 3);
+
+/** Ensures one column below DESKTOP_BREAKPOINT (inline grid is always repeat(3, 1fr)). */
+const LANDING_OFFICIANT_GRID_WEB_SUPPLEMENT = `
+.carriage-landing-officiant-grid > * {
+  min-width: 0;
+}
+@media (max-width: ${DESKTOP_BREAKPOINT - 1}px) {
+  .carriage-landing-officiant-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+`;
+
+/** RN Web: grid survives static export better than flex rows keyed off SSR window width. */
+const landingOfficiantGridWebStyle = {
+  width: '100%',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, 1fr)',
+  gap: 24,
+} as unknown as ViewStyle;
 
 export default function RoleSelectionScreen() {
   const router = useRouter();
@@ -29,6 +49,9 @@ export default function RoleSelectionScreen() {
 
   return (
     <View style={[styles.root, isDesktop && styles.rootDesktop]}>
+      {Platform.OS === 'web' ? (
+        <style dangerouslySetInnerHTML={{ __html: LANDING_OFFICIANT_GRID_WEB_SUPPLEMENT }} />
+      ) : null}
       <LinearGradient
         colors={[WeddingPalette.primaryMuted, WeddingPalette.background, WeddingPalette.backgroundWarm]}
         locations={[0, 0.35, 1]}
@@ -80,13 +103,16 @@ export default function RoleSelectionScreen() {
               isDesktop && styles.pageInnerDesktop,
             ]}>
             <View
-              style={[
-                styles.cardsRow,
-                isDesktop && styles.cardsRowDesktop,
-                { gap: gridGap },
-              ]}>
+              style={
+                Platform.OS === 'web'
+                  ? [landingOfficiantGridWebStyle]
+                  : [styles.cardsRow, isDesktop && styles.cardsRowDesktop, { gap: gridGap }]
+              }
+              {...(Platform.OS === 'web' ? { className: 'carriage-landing-officiant-grid' } : {})}>
               {LANDING_OFFICIANTS.map((officiant) => (
-                <View key={officiant.id} style={isDesktop ? styles.cardColumnDesktop : styles.cardColumnMobile}>
+                <View
+                  key={officiant.id}
+                  style={Platform.OS === 'web' ? styles.cardGridCellWeb : isDesktop ? styles.cardColumnDesktop : styles.cardColumnMobile}>
                   <OfficiantCard officiant={officiant} showBackedBadge={false} />
                 </View>
               ))}
@@ -257,6 +283,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     alignSelf: 'stretch',
+  },
+  cardGridCellWeb: {
+    minWidth: 0,
+    width: '100%',
   },
   ctaRow: {
     width: '100%',
