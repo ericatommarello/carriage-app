@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import React, { createElement } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OfficiantCard } from '@/components/officiant-card';
@@ -23,35 +23,39 @@ function landingGridColumnCount(width: number, isWeb: boolean): number {
   return 3;
 }
 
-/** Inline grid default; media queries override for SSR / static export (viewport at runtime). */
+/**
+ * All grid rules live here — no gridTemplateColumns on RN Web inline styles (those can win over
+ * stylesheets in production and keep 3 skinny columns on phones).
+ */
 const LANDING_OFFICIANT_GRID_WEB_SUPPLEMENT = `
+.carriage-landing-officiant-grid {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  gap: 24px;
+  grid-template-columns: 1fr;
+}
 .carriage-landing-officiant-grid > * {
   min-width: 0;
-}
-@media (max-width: ${LANDING_GRID_TABLET_MIN - 1}px) {
-  .carriage-landing-officiant-grid {
-    grid-template-columns: 1fr !important;
-  }
+  max-width: 100%;
 }
 @media (min-width: ${LANDING_GRID_TABLET_MIN}px) and (max-width: ${LANDING_GRID_DESKTOP_MIN - 1}px) {
   .carriage-landing-officiant-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 @media (min-width: ${LANDING_GRID_DESKTOP_MIN}px) {
   .carriage-landing-officiant-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: ${LANDING_GRID_TABLET_MIN - 1}px) {
+  .carriage-landing-officiant-grid {
+    gap: 20px;
   }
 }
 `;
-
-/** RN Web: grid survives static export; column count from supplement CSS. */
-const landingOfficiantGridWebStyle = {
-  width: '100%',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, 1fr)',
-  gap: 24,
-} as unknown as ViewStyle;
 
 export default function RoleSelectionScreen() {
   const router = useRouter();
@@ -129,31 +133,36 @@ export default function RoleSelectionScreen() {
               { paddingHorizontal: horizontalGutter },
               isDesktop && styles.pageInnerDesktop,
             ]}>
-            <View
-              style={
-                Platform.OS === 'web'
-                  ? [landingOfficiantGridWebStyle]
-                  : [
+            {Platform.OS === 'web'
+              ? createElement(
+                  'div',
+                  { className: 'carriage-landing-officiant-grid' },
+                  LANDING_OFFICIANTS.map((officiant) => (
+                    <View key={officiant.id} style={styles.cardGridCellWeb}>
+                      <OfficiantCard officiant={officiant} showBackedBadge={false} />
+                    </View>
+                  )),
+                )
+              : (
+                  <View
+                    style={[
                       styles.cardsRow,
                       landingCols > 1 && styles.cardsRowMulticolNative,
                       { gap: gridGap },
-                    ]
-              }
-              {...(Platform.OS === 'web' ? { className: 'carriage-landing-officiant-grid' } : {})}>
-              {LANDING_OFFICIANTS.map((officiant) => (
-                <View
-                  key={officiant.id}
-                  style={
-                    Platform.OS === 'web'
-                      ? styles.cardGridCellWeb
-                      : landingCols === 1
-                        ? styles.cardColumnMobile
-                        : [styles.cardGridCellNative, landingCardWidth != null && { width: landingCardWidth }]
-                  }>
-                  <OfficiantCard officiant={officiant} showBackedBadge={false} />
-                </View>
-              ))}
-            </View>
+                    ]}>
+                    {LANDING_OFFICIANTS.map((officiant) => (
+                      <View
+                        key={officiant.id}
+                        style={
+                          landingCols === 1
+                            ? styles.cardColumnMobile
+                            : [styles.cardGridCellNative, landingCardWidth != null && { width: landingCardWidth }]
+                        }>
+                        <OfficiantCard officiant={officiant} showBackedBadge={false} />
+                      </View>
+                    ))}
+                  </View>
+                )}
 
             <Text style={[styles.trustStrip, isDesktop && styles.trustStripDesktop]} accessibilityRole="text">
               <Text style={styles.trustShield}>🛡 </Text>

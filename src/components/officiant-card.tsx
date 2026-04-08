@@ -1,11 +1,13 @@
 import { Link } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { WeddingFonts, WeddingPalette, WeddingShadows } from '@/constants/wedding-theme';
 import { priceForWeddingSize, type Officiant } from '@/data/mock-officiants';
 import { useWedding } from '@/context/wedding-context';
+
+const NARROW_CARD_BREAKPOINT = 768;
 
 type Props = {
   officiant: Officiant;
@@ -89,6 +91,8 @@ function OfficiantAvatarPhoto({
 }
 
 export function OfficiantCard({ officiant, variant = 'default', showBackedBadge = true }: Props) {
+  const { width: windowWidth } = useWindowDimensions();
+  const narrowLayout = windowWidth < NARROW_CARD_BREAKPOINT;
   const { favoriteIds, toggleFavorite, matchProfile } = useWedding();
   const liked = favoriteIds.has(officiant.id);
   const badgePrice = priceForWeddingSize(officiant.pricing, matchProfile?.weddingSize);
@@ -137,7 +141,7 @@ export function OfficiantCard({ officiant, variant = 'default', showBackedBadge 
               locations={[0, 0.45, 1]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.hero}>
+              style={[styles.hero, narrowLayout && styles.heroNarrow]}>
               <View style={styles.heroTop}>
                 <View style={styles.heroLeading}>
                   <Text style={styles.heroSpark}>✦</Text>
@@ -165,10 +169,10 @@ export function OfficiantCard({ officiant, variant = 'default', showBackedBadge 
               />
             </View>
 
-            <View style={styles.lower}>
-              <Text style={styles.name}>{officiant.name}</Text>
-              <Text style={styles.role}>{officiant.title}</Text>
-              <Text style={styles.location}>
+            <View style={[styles.lower, narrowLayout && styles.lowerNarrow]}>
+              <Text style={[styles.name, narrowLayout && styles.nameNarrow]}>{officiant.name}</Text>
+              <Text style={[styles.role, narrowLayout && styles.roleNarrow]}>{officiant.title}</Text>
+              <Text style={[styles.location, narrowLayout && styles.locationNarrow]}>
                 {officiant.location} · {officiant.yearsExperience}+ yrs
               </Text>
 
@@ -234,6 +238,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: R,
     overflow: 'visible',
     position: 'relative',
+  },
+  heroNarrow: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
   },
   backedBadge: {
     position: 'absolute',
@@ -305,6 +313,10 @@ const styles = StyleSheet.create({
     backgroundColor: WeddingPalette.surface,
     minWidth: 0,
   },
+  lowerNarrow: {
+    paddingHorizontal: 16,
+    paddingBottom: 18,
+  },
   name: {
     fontFamily: WeddingFonts.displayBold,
     fontSize: 24,
@@ -318,6 +330,11 @@ const styles = StyleSheet.create({
         wordBreak: 'break-word',
       } as object,
     }),
+  },
+  nameNarrow: {
+    fontSize: 21,
+    lineHeight: 26,
+    paddingRight: 12,
   },
   role: {
     fontFamily: WeddingFonts.sansMedium,
@@ -333,6 +350,10 @@ const styles = StyleSheet.create({
       } as object,
     }),
   },
+  roleNarrow: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
   location: {
     fontFamily: WeddingFonts.sans,
     fontSize: 14,
@@ -346,6 +367,10 @@ const styles = StyleSheet.create({
         wordBreak: 'break-word',
       } as object,
     }),
+  },
+  locationNarrow: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   ratingRow: {
     flexDirection: 'row',
