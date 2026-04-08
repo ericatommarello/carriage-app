@@ -8,23 +8,44 @@ import { OfficiantCard } from '@/components/officiant-card';
 import { WeddingFonts, WeddingPalette } from '@/constants/wedding-theme';
 import { MOCK_OFFICIANTS } from '@/data/mock-officiants';
 import { useWedding } from '@/context/wedding-context';
-import { DESKTOP_BREAKPOINT, useResponsive } from '@/hooks/use-responsive';
+import { useResponsive } from '@/hooks/use-responsive';
 
 const LANDING_OFFICIANTS = MOCK_OFFICIANTS.slice(0, 3);
 
-/** Ensures one column below DESKTOP_BREAKPOINT (inline grid is always repeat(3, 1fr)). */
+/** Landing card grid breakpoints (align with responsive hook TOP_NAV at 768). */
+const LANDING_GRID_TABLET_MIN = 768;
+const LANDING_GRID_DESKTOP_MIN = 1025;
+
+function landingGridColumnCount(width: number, isWeb: boolean): number {
+  if (isWeb) return 0;
+  if (width < LANDING_GRID_TABLET_MIN) return 1;
+  if (width < LANDING_GRID_DESKTOP_MIN) return 2;
+  return 3;
+}
+
+/** Inline grid default; media queries override for SSR / static export (viewport at runtime). */
 const LANDING_OFFICIANT_GRID_WEB_SUPPLEMENT = `
 .carriage-landing-officiant-grid > * {
   min-width: 0;
 }
-@media (max-width: ${DESKTOP_BREAKPOINT - 1}px) {
+@media (max-width: ${LANDING_GRID_TABLET_MIN - 1}px) {
   .carriage-landing-officiant-grid {
     grid-template-columns: 1fr !important;
   }
 }
+@media (min-width: ${LANDING_GRID_TABLET_MIN}px) and (max-width: ${LANDING_GRID_DESKTOP_MIN - 1}px) {
+  .carriage-landing-officiant-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+@media (min-width: ${LANDING_GRID_DESKTOP_MIN}px) {
+  .carriage-landing-officiant-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
 `;
 
-/** RN Web: grid survives static export better than flex rows keyed off SSR window width. */
+/** RN Web: grid survives static export; column count from supplement CSS. */
 const landingOfficiantGridWebStyle = {
   width: '100%',
   display: 'grid',
@@ -35,7 +56,13 @@ const landingOfficiantGridWebStyle = {
 export default function RoleSelectionScreen() {
   const router = useRouter();
   const { setRole } = useWedding();
-  const { isDesktop, horizontalGutter, gridGap } = useResponsive();
+  const { isDesktop, horizontalGutter, gridGap, isWeb, width } = useResponsive();
+  const landingCols = landingGridColumnCount(width, isWeb);
+  const usableLandingWidth = Math.max(0, width - horizontalGutter * 2);
+  const landingCardWidth =
+    landingCols > 1
+      ? (usableLandingWidth - gridGap * (landingCols - 1)) / landingCols
+      : undefined;
 
   const startAsCouple = () => {
     setRole('couple');
@@ -106,13 +133,23 @@ export default function RoleSelectionScreen() {
               style={
                 Platform.OS === 'web'
                   ? [landingOfficiantGridWebStyle]
-                  : [styles.cardsRow, isDesktop && styles.cardsRowDesktop, { gap: gridGap }]
+                  : [
+                      styles.cardsRow,
+                      landingCols > 1 && styles.cardsRowMulticolNative,
+                      { gap: gridGap },
+                    ]
               }
               {...(Platform.OS === 'web' ? { className: 'carriage-landing-officiant-grid' } : {})}>
               {LANDING_OFFICIANTS.map((officiant) => (
                 <View
                   key={officiant.id}
-                  style={Platform.OS === 'web' ? styles.cardGridCellWeb : isDesktop ? styles.cardColumnDesktop : styles.cardColumnMobile}>
+                  style={
+                    Platform.OS === 'web'
+                      ? styles.cardGridCellWeb
+                      : landingCols === 1
+                        ? styles.cardColumnMobile
+                        : [styles.cardGridCellNative, landingCardWidth != null && { width: landingCardWidth }]
+                  }>
                   <OfficiantCard officiant={officiant} showBackedBadge={false} />
                 </View>
               ))}
@@ -269,24 +306,22 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'stretch',
   },
-  cardsRowDesktop: {
+  cardsRowMulticolNative: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
+    flexWrap: 'wrap',
     alignItems: 'stretch',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   cardColumnMobile: {
     width: '100%',
     alignSelf: 'stretch',
   },
-  cardColumnDesktop: {
-    flex: 1,
-    minWidth: 0,
-    alignSelf: 'stretch',
-  },
   cardGridCellWeb: {
     minWidth: 0,
     width: '100%',
+  },
+  cardGridCellNative: {
+    minWidth: 0,
   },
   ctaRow: {
     width: '100%',

@@ -112,12 +112,8 @@ export function OfficiantCard({ officiant, variant = 'default', showBackedBadge 
               letterFontSize={22}
             />
             <View style={styles.compactBody}>
-              <Text style={styles.compactName} numberOfLines={2}>
-                {officiant.name}
-              </Text>
-              <Text style={styles.compactTitle} numberOfLines={1}>
-                {officiant.title}
-              </Text>
+              <Text style={styles.compactName}>{officiant.name}</Text>
+              <Text style={styles.compactTitle}>{officiant.title}</Text>
               <Text style={styles.compactMeta}>
                 ★ {officiant.rating.toFixed(2)} · from ${badgePrice}
               </Text>
@@ -170,9 +166,7 @@ export function OfficiantCard({ officiant, variant = 'default', showBackedBadge 
             </View>
 
             <View style={styles.lower}>
-              <Text style={styles.name} numberOfLines={2}>
-                {officiant.name}
-              </Text>
+              <Text style={styles.name}>{officiant.name}</Text>
               <Text style={styles.role}>{officiant.title}</Text>
               <Text style={styles.location}>
                 {officiant.location} · {officiant.yearsExperience}+ yrs
@@ -309,6 +303,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     backgroundColor: WeddingPalette.surface,
+    minWidth: 0,
   },
   name: {
     fontFamily: WeddingFonts.displayBold,
@@ -316,18 +311,41 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     color: WeddingPalette.text,
     paddingRight: 52,
+    flexShrink: 1,
+    ...Platform.select({
+      web: {
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+      } as object,
+    }),
   },
   role: {
     fontFamily: WeddingFonts.sansMedium,
     fontSize: 15,
+    lineHeight: 21,
     color: WeddingPalette.primaryDark,
     marginTop: 6,
+    flexShrink: 1,
+    ...Platform.select({
+      web: {
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+      } as object,
+    }),
   },
   location: {
     fontFamily: WeddingFonts.sans,
     fontSize: 14,
+    lineHeight: 20,
     color: WeddingPalette.textMuted,
     marginTop: 6,
+    flexShrink: 1,
+    ...Platform.select({
+      web: {
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+      } as object,
+    }),
   },
   ratingRow: {
     flexDirection: 'row',
@@ -364,11 +382,21 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: WeddingPalette.primaryGlow,
+    maxWidth: '100%',
+    flexShrink: 1,
   },
   chipText: {
     fontFamily: WeddingFonts.sansMedium,
     fontSize: 12,
+    lineHeight: 16,
     color: WeddingPalette.primaryDark,
+    flexShrink: 1,
+    ...Platform.select({
+      web: {
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+      } as object,
+    }),
   },
   fabHeart: {
     ...WeddingShadows.fab,
@@ -420,12 +448,28 @@ const styles = StyleSheet.create({
   compactName: {
     fontFamily: WeddingFonts.display,
     fontSize: 19,
+    lineHeight: 24,
     color: WeddingPalette.text,
+    flexShrink: 1,
+    ...Platform.select({
+      web: {
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+      } as object,
+    }),
   },
   compactTitle: {
     fontFamily: WeddingFonts.sans,
     fontSize: 13,
+    lineHeight: 18,
     color: WeddingPalette.primaryDark,
+    flexShrink: 1,
+    ...Platform.select({
+      web: {
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+      } as object,
+    }),
   },
   compactMeta: {
     fontFamily: WeddingFonts.sansMedium,
