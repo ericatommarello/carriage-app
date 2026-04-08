@@ -1,98 +1,354 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { OfficiantCard } from '@/components/officiant-card';
+import { WeddingFonts, WeddingPalette } from '@/constants/wedding-theme';
+import { MOCK_OFFICIANTS } from '@/data/mock-officiants';
+import { useWedding } from '@/context/wedding-context';
+import { useResponsive } from '@/hooks/use-responsive';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+const LANDING_OFFICIANTS = MOCK_OFFICIANTS.slice(0, 3);
+
+export default function RoleSelectionScreen() {
+  const router = useRouter();
+  const { setRole } = useWedding();
+  const { isDesktop, horizontalGutter, gridGap } = useResponsive();
+
+  const startAsCouple = () => {
+    setRole('couple');
+    router.replace('/match');
+  };
+
+  const joinOfficiant = () => {
+    setRole('officiant');
+    router.replace('/officiant/apply');
+  };
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <View style={[styles.root, isDesktop && styles.rootDesktop]}>
+      <LinearGradient
+        colors={[WeddingPalette.primaryMuted, WeddingPalette.background, WeddingPalette.backgroundWarm]}
+        locations={[0, 0.35, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: isDesktop ? 56 : 36,
+            },
+          ]}>
+          <View style={[styles.heroCream, isDesktop && styles.heroCreamDesktop]}>
+            <View
+              style={[
+                styles.heroInner,
+                { paddingHorizontal: horizontalGutter },
+                isDesktop && styles.heroInnerDesktop,
+              ]}>
+              <Text style={[styles.heroHeadline, isDesktop && styles.heroHeadlineDesktop]} accessibilityRole="header">
+                Your friend got ordained online on a Tuesday. Your ceremony deserves more than that.
+              </Text>
+              <Text style={[styles.heroSupporting, isDesktop && styles.heroSupportingDesktop]}>
+                The person who pronounces you married matters more than the flowers, the venue, and the cake.
+              </Text>
+              <Pressable
+                onPress={startAsCouple}
+                style={({ pressed }) => [
+                  styles.heroCtaButton,
+                  isDesktop && styles.heroCtaButtonDesktop,
+                  pressed && styles.ctaPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Find them on Carriage — start as a couple">
+                <Text style={[styles.heroCtaButtonLabel, isDesktop && styles.heroCtaButtonLabelDesktop]}>
+                  Find them on Carriage — the marketplace for wedding officiants.
+                </Text>
+              </Pressable>
+            </View>
+          </View>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+          <View
+            style={[
+              styles.pageInner,
+              { paddingHorizontal: horizontalGutter },
+              isDesktop && styles.pageInnerDesktop,
+            ]}>
+            <View
+              style={[
+                styles.cardsRow,
+                isDesktop && styles.cardsRowDesktop,
+                { gap: gridGap },
+              ]}>
+              {LANDING_OFFICIANTS.map((officiant) => (
+                <View key={officiant.id} style={isDesktop ? styles.cardColumnDesktop : styles.cardColumnMobile}>
+                  <OfficiantCard officiant={officiant} showBackedBadge={false} />
+                </View>
+              ))}
+            </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+            <Text style={[styles.trustStrip, isDesktop && styles.trustStripDesktop]} accessibilityRole="text">
+              <Text style={styles.trustShield}>🛡 </Text>
+              Every officiant on Carriage is backed by our Backup Guarantee — if they cancel, we make it right.
+            </Text>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
+            <View style={[styles.ctaRow, isDesktop && styles.ctaRowDesktop]}>
+              <Pressable
+                onPress={startAsCouple}
+                style={({ pressed }) => [styles.ctaSolid, pressed && styles.ctaPressed]}
+                accessibilityRole="button"
+                accessibilityLabel="We are getting married">
+                <Text style={styles.ctaSolidLabel}>We&apos;re getting married</Text>
+              </Pressable>
+              <Pressable
+                onPress={joinOfficiant}
+                style={({ pressed }) => [styles.ctaOutline, pressed && styles.ctaPressed]}
+                accessibilityRole="button"
+                accessibilityLabel="I am an officiant">
+                <Text style={styles.ctaOutlineLabel}>I&apos;m an officiant</Text>
+              </Pressable>
+            </View>
+          </View>
+        </ScrollView>
       </SafeAreaView>
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    backgroundColor: WeddingPalette.background,
   },
-  safeArea: {
+  rootDesktop: {
+    minHeight: '100%',
+    width: '100%',
+  },
+  safe: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
+    width: '100%',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: '100%',
+    paddingTop: 0,
+  },
+  heroCream: {
+    width: '100%',
+    backgroundColor: WeddingPalette.background,
+    paddingVertical: 28,
+    borderBottomWidth: 1,
+    borderBottomColor: WeddingPalette.border,
+  },
+  heroCreamDesktop: {
+    paddingVertical: 44,
+  },
+  heroInner: {
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+  heroInnerDesktop: {
+    maxWidth: 880,
   },
-  title: {
+  heroHeadline: {
+    fontFamily: WeddingFonts.serif,
+    fontSize: 28,
+    lineHeight: 36,
+    color: WeddingPalette.text,
+    letterSpacing: -0.2,
+    marginBottom: 16,
     textAlign: 'center',
   },
-  code: {
-    textTransform: 'uppercase',
+  heroHeadlineDesktop: {
+    fontSize: 44,
+    lineHeight: 54,
+    marginBottom: 20,
   },
-  stepContainer: {
-    gap: Spacing.three,
+  heroSupporting: {
+    fontFamily: WeddingFonts.serif,
+    fontSize: 17,
+    lineHeight: 26,
+    color: WeddingPalette.textSecondary,
+    letterSpacing: -0.05,
+    textAlign: 'center',
+    marginBottom: 22,
+    maxWidth: 640,
+  },
+  heroSupportingDesktop: {
+    fontSize: 22,
+    lineHeight: 32,
+    marginBottom: 26,
+    maxWidth: 720,
+  },
+  heroCtaButton: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 560,
+    backgroundColor: WeddingPalette.coral,
+    paddingVertical: 16,
+    paddingHorizontal: 28,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        boxShadow: '0 6px 20px rgba(232, 90, 74, 0.28)',
+      },
+      default: {
+        shadowColor: WeddingPalette.coralDeep,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.22,
+        shadowRadius: 12,
+        elevation: 5,
+      },
+    }),
+  },
+  heroCtaButtonDesktop: {
+    maxWidth: 520,
+    paddingVertical: 18,
+    paddingHorizontal: 36,
+  },
+  heroCtaButtonLabel: {
+    fontFamily: WeddingFonts.sansSemibold,
+    fontSize: 16,
+    lineHeight: 24,
+    letterSpacing: 0.12,
+    color: WeddingPalette.onAccent,
+    textAlign: 'center',
+  },
+  heroCtaButtonLabelDesktop: {
+    fontSize: 18,
+    lineHeight: 26,
+  },
+  pageInner: {
+    width: '100%',
+    paddingTop: 24,
+  },
+  pageInnerDesktop: {
+    maxWidth: 1200,
+    alignSelf: 'center',
+    paddingTop: 32,
+  },
+  cardsRow: {
+    width: '100%',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  cardsRowDesktop: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    alignItems: 'stretch',
+    justifyContent: 'center',
+  },
+  cardColumnMobile: {
+    width: '100%',
     alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  },
+  cardColumnDesktop: {
+    flex: 1,
+    minWidth: 0,
+    alignSelf: 'stretch',
+  },
+  ctaRow: {
+    width: '100%',
+    marginTop: 28,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 18,
+    columnGap: 18,
+    rowGap: 14,
+    paddingHorizontal: 4,
+  },
+  ctaRowDesktop: {
+    marginTop: 36,
+    columnGap: 24,
+    rowGap: 16,
+  },
+  ctaSolid: {
+    backgroundColor: WeddingPalette.coral,
+    paddingVertical: 15,
+    paddingHorizontal: 22,
+    borderRadius: 18,
+    minWidth: 168,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        boxShadow: '0 6px 20px rgba(232, 90, 74, 0.28)',
+      },
+      default: {
+        shadowColor: WeddingPalette.coralDeep,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.22,
+        shadowRadius: 12,
+        elevation: 5,
+      },
+    }),
+  },
+  ctaOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: WeddingPalette.coral,
+    paddingVertical: 13,
+    paddingHorizontal: 22,
+    borderRadius: 18,
+    minWidth: 168,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...(Platform.OS === 'web' ? ({ cursor: 'pointer' } as object) : null),
+  },
+  ctaPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.99 }],
+  },
+  ctaSolidLabel: {
+    fontFamily: WeddingFonts.serif,
+    fontSize: 18,
+    lineHeight: 24,
+    color: WeddingPalette.onAccent,
+    textAlign: 'center',
+  },
+  ctaOutlineLabel: {
+    fontFamily: WeddingFonts.serif,
+    fontSize: 18,
+    lineHeight: 24,
+    color: WeddingPalette.coral,
+    textAlign: 'center',
+  },
+  trustStrip: {
+    marginTop: 28,
+    marginBottom: 4,
+    paddingHorizontal: 12,
+    maxWidth: 720,
+    alignSelf: 'center',
+    fontFamily: WeddingFonts.sans,
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    color: WeddingPalette.textSecondary,
+  },
+  trustStripDesktop: {
+    marginTop: 36,
+    maxWidth: 820,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  trustShield: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: WeddingPalette.coralDeep,
+    opacity: 0.72,
   },
 });
