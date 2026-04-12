@@ -6,7 +6,9 @@ import { WeddingFonts, WeddingPalette } from '@/constants/wedding-theme';
 import { useWedding } from '@/context/wedding-context';
 import {
   applyPendingQuizCompletionIfNeeded,
+  clearPendingMatchProfile,
   getProfileQuizCompleted,
+  loadPendingMatchProfile,
   markQuizCompletedForCurrentUser,
 } from '@/lib/couple-profile';
 import { supabase } from '@/lib/supabase';
@@ -15,7 +17,7 @@ const PROFILE_GATE_RETRY_MS = 500;
 
 export default function CoupleBrowseStack() {
   const router = useRouter();
-  const { matchProfile } = useWedding();
+  const { matchProfile, setMatchProfile } = useWedding();
   const [gate, setGate] = useState<'loading' | 'ok'>('loading');
 
   useEffect(() => {
@@ -35,10 +37,14 @@ export default function CoupleBrowseStack() {
 
       await applyPendingQuizCompletionIfNeeded();
 
+      const draft = await loadPendingMatchProfile();
+      if (draft && !matchProfile) setMatchProfile(draft);
+      const effectiveProfile = draft ?? matchProfile;
+
       let done = await getProfileQuizCompleted(session.user.id);
       if (cancelled) return;
 
-      if (!done && matchProfile) {
+      if (!done && effectiveProfile) {
         await markQuizCompletedForCurrentUser();
         done = await getProfileQuizCompleted(session.user.id);
       }
@@ -54,13 +60,14 @@ export default function CoupleBrowseStack() {
         return;
       }
 
+      await clearPendingMatchProfile();
       setGate('ok');
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [router, matchProfile]);
+  }, [router, matchProfile, setMatchProfile]);
 
   if (gate !== 'ok') {
     return (

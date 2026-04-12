@@ -17,7 +17,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WeddingFonts, WeddingPalette, WeddingShadows } from '@/constants/wedding-theme';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useWedding } from '@/context/wedding-context';
-import { markQuizCompletedForCurrentUser, setPendingQuizCompletionFlag } from '@/lib/couple-profile';
+import {
+  clearPendingMatchProfile,
+  hasPendingQuizCompletionFlag,
+  loadPendingMatchProfile,
+  markQuizCompletedForCurrentUser,
+  persistPendingMatchProfile,
+  setPendingQuizCompletionFlag,
+} from '@/lib/couple-profile';
 import { supabase } from '@/lib/supabase';
 import type { BeliefsKey, MatchProfile, WeddingSize } from '@/types/match-profile';
 
@@ -165,6 +172,16 @@ export default function CoupleMatchScreen() {
   const [location, setLocation] = useState('');
   const [pendingPick, setPendingPick] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearAdvanceTimer = useCallback(() => {
+    if (advanceTimerRef.current != null) {
+      clearTimeout(advanceTimerRef.current);
+      advanceTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearAdvanceTimer(), [clearAdvanceTimer]);
 
   useEffect(() => {
     setPendingPick(null);
@@ -183,16 +200,48 @@ export default function CoupleMatchScreen() {
     setLocation(matchProfile.location);
   }, [matchProfile]);
 
+  /** Return users who already finished the quiz (pending flag) to sign-in; restore draft answers from storage. */
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const pendingComplete = await hasPendingQuizCompletionFlag();
+      if (cancelled) return;
+
+      if (pendingComplete && !session?.user?.id) {
+        router.replace('/(couple)/sign-in');
+        return;
+      }
+
+      if (matchProfile) return;
+
+      const draft = await loadPendingMatchProfile();
+      if (cancelled || !draft) return;
+      setMatchProfile(draft);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router, matchProfile, setMatchProfile]);
+
   const skipForward = () => {
+    clearAdvanceTimer();
     setStep((s) => Math.min(s + 1, LOCATION_STEP_INDEX));
   };
 
   const goToLocationStep = useCallback(() => {
+    clearAdvanceTimer();
     setStep(LOCATION_STEP_INDEX);
-  }, []);
+  }, [clearAdvanceTimer]);
 
   const scheduleAdvance = () => {
-    setTimeout(() => {
+    clearAdvanceTimer();
+    advanceTimerRef.current = setTimeout(() => {
+      advanceTimerRef.current = null;
       setStep((s) => Math.min(s + 1, LOCATION_STEP_INDEX));
     }, AUTO_ADVANCE_MS);
   };
@@ -210,6 +259,7 @@ export default function CoupleMatchScreen() {
   const clearMustHaves = () => setMustHaves([]);
 
   const submit = () => {
+    clearAdvanceTimer();
     const profile: MatchProfile = {
       vibe: vibe ?? 'joyful',
       beliefs: beliefs ?? 'open',
@@ -217,21 +267,30 @@ export default function CoupleMatchScreen() {
       mustHaves,
       location: location.trim(),
     };
-    setMatchProfile(profile);
-    setShowTransition(true);
+    void (async () => {
+      await persistPendingMatchProfile(profile);
+      setMatchProfile(profile);
+      setShowTransition(true);
+    })();
   };
 
   const finishTransition = useCallback(() => {
-    setShowTransition(false);
     void (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session?.user?.id) {
-        await setPendingQuizCompletionFlag();
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.user?.id) {
+          await setPendingQuizCompletionFlag();
+          router.replace('/(couple)/sign-in');
+          return;
+        }
+        const ok = await markQuizCompletedForCurrentUser();
+        if (ok) await clearPendingMatchProfile();
+        router.replace('/(couple)/browse');
+      } catch {
+        setShowTransition(false);
       }
-      await markQuizCompletedForCurrentUser();
-      router.replace('/(couple)/browse');
     })();
   }, [router]);
 

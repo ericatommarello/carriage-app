@@ -15,7 +15,9 @@ import { useResponsive } from '@/hooks/use-responsive';
 import { signInWithGoogleOAuth } from '@/lib/auth-oauth';
 import {
   applyPendingQuizCompletionIfNeeded,
+  clearPendingMatchProfile,
   getProfileQuizCompleted,
+  loadPendingMatchProfile,
   markQuizCompletedForCurrentUser,
 } from '@/lib/couple-profile';
 import { useWedding } from '@/context/wedding-context';
@@ -25,7 +27,7 @@ const PROFILE_READ_RETRY_MS = 500;
 
 export default function CoupleSignInScreen() {
   const router = useRouter();
-  const { matchProfile } = useWedding();
+  const { matchProfile, setMatchProfile } = useWedding();
   const { horizontalGutter, isDesktop, isTopNavLayout } = useResponsive();
   const safeEdges = isDesktop || isTopNavLayout ? ([] as const) : (['top'] as const);
   const [busy, setBusy] = useState(false);
@@ -46,16 +48,24 @@ export default function CoupleSignInScreen() {
           return;
         }
 
+        const draft = await loadPendingMatchProfile();
+        if (draft && !matchProfile) setMatchProfile(draft);
+        const effectiveProfile = draft ?? matchProfile;
+
         await applyPendingQuizCompletionIfNeeded();
 
         let quizDone = await getProfileQuizCompleted(user.id);
-        if (!quizDone && matchProfile) {
+        if (!quizDone && effectiveProfile) {
           await markQuizCompletedForCurrentUser();
           quizDone = await getProfileQuizCompleted(user.id);
         }
         if (!quizDone) {
           await new Promise((r) => setTimeout(r, PROFILE_READ_RETRY_MS));
           quizDone = await getProfileQuizCompleted(user.id);
+        }
+
+        if (quizDone) {
+          await clearPendingMatchProfile();
         }
 
         router.replace(quizDone ? '/(couple)/browse' : '/match');
@@ -65,7 +75,7 @@ export default function CoupleSignInScreen() {
         routingInFlight.current = false;
       }
     },
-    [router, matchProfile],
+    [router, matchProfile, setMatchProfile],
   );
 
   /** Web PKCE: exchange ?code= before relying on implicit URL detection (avoids racing profile read). */
