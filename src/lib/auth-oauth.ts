@@ -49,6 +49,11 @@ export function getGoogleOAuthRedirectTo(): string {
     if (isLocalDev) {
       return `${o}/sign-in`;
     }
+    // Same tab origin as OAuth start — required so web localStorage (e.g. pending quiz sync)
+    // is still there after redirect. Add both apex and www redirect URLs in Supabase.
+    if (/^https:\/\/(www\.)?carriage\.app$/i.test(o)) {
+      return `${o}/sign-in`;
+    }
     if (envOrigin && o === envOrigin) {
       return `${o}/sign-in`;
     }

@@ -3,11 +3,19 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { WeddingFonts, WeddingPalette } from '@/constants/wedding-theme';
-import { getProfileQuizCompleted } from '@/lib/couple-profile';
+import { useWedding } from '@/context/wedding-context';
+import {
+  applyPendingQuizCompletionIfNeeded,
+  getProfileQuizCompleted,
+  markQuizCompletedForCurrentUser,
+} from '@/lib/couple-profile';
 import { supabase } from '@/lib/supabase';
+
+const PROFILE_GATE_RETRY_MS = 500;
 
 export default function CoupleBrowseStack() {
   const router = useRouter();
+  const { matchProfile } = useWedding();
   const [gate, setGate] = useState<'loading' | 'ok'>('loading');
 
   useEffect(() => {
@@ -25,7 +33,20 @@ export default function CoupleBrowseStack() {
         return;
       }
 
-      const done = await getProfileQuizCompleted(session.user.id);
+      await applyPendingQuizCompletionIfNeeded();
+
+      let done = await getProfileQuizCompleted(session.user.id);
+      if (cancelled) return;
+
+      if (!done && matchProfile) {
+        await markQuizCompletedForCurrentUser();
+        done = await getProfileQuizCompleted(session.user.id);
+      }
+      if (!done) {
+        await new Promise((r) => setTimeout(r, PROFILE_GATE_RETRY_MS));
+        done = await getProfileQuizCompleted(session.user.id);
+      }
+
       if (cancelled) return;
 
       if (!done) {
@@ -39,7 +60,7 @@ export default function CoupleBrowseStack() {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, matchProfile]);
 
   if (gate !== 'ok') {
     return (

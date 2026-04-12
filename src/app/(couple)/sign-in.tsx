@@ -13,13 +13,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WeddingFonts, WeddingPalette, WeddingShadows } from '@/constants/wedding-theme';
 import { useResponsive } from '@/hooks/use-responsive';
 import { signInWithGoogleOAuth } from '@/lib/auth-oauth';
-import { getProfileQuizCompleted } from '@/lib/couple-profile';
+import {
+  applyPendingQuizCompletionIfNeeded,
+  getProfileQuizCompleted,
+  markQuizCompletedForCurrentUser,
+} from '@/lib/couple-profile';
+import { useWedding } from '@/context/wedding-context';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 const PROFILE_READ_RETRY_MS = 500;
 
 export default function CoupleSignInScreen() {
   const router = useRouter();
+  const { matchProfile } = useWedding();
   const { horizontalGutter, isDesktop, isTopNavLayout } = useResponsive();
   const safeEdges = isDesktop || isTopNavLayout ? ([] as const) : (['top'] as const);
   const [busy, setBusy] = useState(false);
@@ -37,11 +43,16 @@ export default function CoupleSignInScreen() {
           error: userError,
         } = await supabase.auth.getUser();
         if (userError || !user?.id) {
-          routingInFlight.current = false;
           return;
         }
 
+        await applyPendingQuizCompletionIfNeeded();
+
         let quizDone = await getProfileQuizCompleted(user.id);
+        if (!quizDone && matchProfile) {
+          await markQuizCompletedForCurrentUser();
+          quizDone = await getProfileQuizCompleted(user.id);
+        }
         if (!quizDone) {
           await new Promise((r) => setTimeout(r, PROFILE_READ_RETRY_MS));
           quizDone = await getProfileQuizCompleted(user.id);
@@ -49,10 +60,12 @@ export default function CoupleSignInScreen() {
 
         router.replace(quizDone ? '/(couple)/browse' : '/match');
       } catch {
+        /* route on retry via auth listener */
+      } finally {
         routingInFlight.current = false;
       }
     },
-    [router],
+    [router, matchProfile],
   );
 
   /** Web PKCE: exchange ?code= before relying on implicit URL detection (avoids racing profile read). */

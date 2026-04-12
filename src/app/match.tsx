@@ -17,7 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WeddingFonts, WeddingPalette, WeddingShadows } from '@/constants/wedding-theme';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useWedding } from '@/context/wedding-context';
-import { markQuizCompletedForCurrentUser } from '@/lib/couple-profile';
+import { markQuizCompletedForCurrentUser, setPendingQuizCompletionFlag } from '@/lib/couple-profile';
+import { supabase } from '@/lib/supabase';
 import type { BeliefsKey, MatchProfile, WeddingSize } from '@/types/match-profile';
 
 /** Number of progress dots / quiz screens (indices 0 … TOTAL_STEPS - 1). */
@@ -223,6 +224,12 @@ export default function CoupleMatchScreen() {
   const finishTransition = useCallback(() => {
     setShowTransition(false);
     void (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        await setPendingQuizCompletionFlag();
+      }
       await markQuizCompletedForCurrentUser();
       router.replace('/(couple)/browse');
     })();
