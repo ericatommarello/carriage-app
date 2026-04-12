@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BrowseSessionBadge } from '@/components/browse-session-badge';
 import { OfficiantCard } from '@/components/officiant-card';
 import { OfficiantGrid } from '@/components/officiant-grid';
 import { ScreenHeader } from '@/components/screen-header';
@@ -33,11 +34,16 @@ export default function CoupleBrowseScreen() {
           },
         ]}
         showsVerticalScrollIndicator={false}>
-        <ScreenHeader
-          eyebrow="Discover"
-          title="Meet your moment"
-          subtitle="Rich bios, honest pricing, and officiants who bring heart—not a script—to your aisle."
-        />
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextBlock}>
+            <ScreenHeader
+              eyebrow="Discover"
+              title="Meet your moment"
+              subtitle="Rich bios, honest pricing, and officiants who bring heart—not a script—to your aisle."
+            />
+          </View>
+          <BrowseSessionBadge />
+        </View>
 
         <Text style={[styles.gridTip, isDesktop && styles.gridTipDesktop]}>
           Tap a card to explore · Heart to save · Message when ready.
@@ -88,6 +94,16 @@ const styles = StyleSheet.create({
   scroll: {
     width: '100%',
     maxWidth: '100%',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    width: '100%',
+  },
+  headerTextBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   gridTip: {
     fontFamily: WeddingFonts.serifItalic,

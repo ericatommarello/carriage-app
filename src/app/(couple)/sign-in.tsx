@@ -16,23 +16,71 @@ import { signInWithGoogleOAuth } from '@/lib/auth-oauth';
 import { getProfileQuizCompleted } from '@/lib/couple-profile';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
+const PROFILE_READ_RETRY_MS = 500;
+
 export default function CoupleSignInScreen() {
   const router = useRouter();
   const { horizontalGutter, isDesktop, isTopNavLayout } = useResponsive();
   const safeEdges = isDesktop || isTopNavLayout ? ([] as const) : (['top'] as const);
   const [busy, setBusy] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
-  const routedRef = useRef(false);
+  const routingInFlight = useRef(false);
 
   const routeAfterSession = useCallback(
     async (userId: string) => {
-      if (routedRef.current) return;
-      routedRef.current = true;
-      const done = await getProfileQuizCompleted(userId);
-      router.replace(done ? '/(couple)/browse' : '/match');
+      if (routingInFlight.current) return;
+      routingInFlight.current = true;
+
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        if (userError || !user?.id) {
+          routingInFlight.current = false;
+          return;
+        }
+
+        let quizDone = await getProfileQuizCompleted(user.id);
+        if (!quizDone) {
+          await new Promise((r) => setTimeout(r, PROFILE_READ_RETRY_MS));
+          quizDone = await getProfileQuizCompleted(user.id);
+        }
+
+        router.replace(quizDone ? '/(couple)/browse' : '/match');
+      } catch {
+        routingInFlight.current = false;
+      }
     },
     [router],
   );
+
+  /** Web PKCE: exchange ?code= before relying on implicit URL detection (avoids racing profile read). */
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const oauthErr = params.get('error_description') ?? params.get('error');
+    if (oauthErr) {
+      setConfigError(oauthErr);
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
+    const code = params.get('code');
+    if (!code) return;
+
+    void (async () => {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        setConfigError(error.message);
+        routingInFlight.current = false;
+        return;
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    })();
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -49,8 +97,10 @@ export default function CoupleSignInScreen() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (cancelled || !session?.user?.id) return;
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return;
+      if (!session?.user?.id) return;
       void routeAfterSession(session.user.id);
     });
 

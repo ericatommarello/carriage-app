@@ -57,6 +57,11 @@ export function getGoogleOAuthRedirectTo(): string {
   return `${envOrigin ?? CARRIAGE_WEB_ORIGIN}/sign-in`;
 }
 
+/**
+ * Starts Google OAuth. After redirect, the sign-in screen exchanges the PKCE code (web) or
+ * `finalizeSupabaseOAuthFromUrl` (native), then `onAuthStateChange` with `SIGNED_IN` / `INITIAL_SESSION`
+ * runs browse-vs-quiz routing in `src/app/(couple)/sign-in.tsx`.
+ */
 export async function signInWithGoogleOAuth(): Promise<void> {
   const redirectTo = getGoogleOAuthRedirectTo();
 
