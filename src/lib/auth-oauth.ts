@@ -6,6 +6,9 @@ import { supabase } from '@/lib/supabase';
 
 void WebBrowser.maybeCompleteAuthSession();
 
+/** Production web origin; OAuth redirect must match Supabase “Redirect URLs” (e.g. …/sign-in). */
+const CARRIAGE_WEB_ORIGIN = 'https://www.carriage.app';
+
 /** Parse OAuth return URL and establish Supabase session (native PKCE / implicit). */
 export async function finalizeSupabaseOAuthFromUrl(callbackUrl: string): Promise<void> {
   const codeMatch = callbackUrl.match(/[?&#]code=([^&#]+)/);
@@ -28,11 +31,34 @@ export async function finalizeSupabaseOAuthFromUrl(callbackUrl: string): Promise
   }
 }
 
-/** Deep link path (group segments omitted) must match Supabase Auth redirect allowlist. */
-const SIGN_IN_REDIRECT_PATH = 'sign-in';
+/**
+ * `redirectTo` for `signInWithOAuth`. PKCE requires the post-login URL to stay on the same origin
+ * as the tab that started login (except we send production users to the canonical carriage.app host).
+ */
+export function getGoogleOAuthRedirectTo(): string {
+  if (Platform.OS !== 'web') {
+    return Linking.createURL('sign-in');
+  }
+
+  const envOrigin = process.env.EXPO_PUBLIC_SITE_URL?.replace(/\/$/, '');
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    const o = window.location.origin;
+    const isLocalDev =
+      /^https?:\/\/localhost\b/i.test(o) || /^https?:\/\/127\.0\.0\.1\b/i.test(o);
+    if (isLocalDev) {
+      return `${o}/sign-in`;
+    }
+    if (envOrigin && o === envOrigin) {
+      return `${o}/sign-in`;
+    }
+  }
+
+  return `${envOrigin ?? CARRIAGE_WEB_ORIGIN}/sign-in`;
+}
 
 export async function signInWithGoogleOAuth(): Promise<void> {
-  const redirectTo = Linking.createURL(SIGN_IN_REDIRECT_PATH);
+  const redirectTo = getGoogleOAuthRedirectTo();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -44,7 +70,7 @@ export async function signInWithGoogleOAuth(): Promise<void> {
   if (error) throw error;
 
   if (Platform.OS === 'web') {
-    if (data.url) {
+    if (data.url && typeof window !== 'undefined') {
       window.location.assign(data.url);
     }
     return;
